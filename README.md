@@ -37,11 +37,21 @@ The interactive version, with the error-vs-time chart, the frequency map and a c
 | LASSO path | 3.50 pp | 2.99 pp |
 | ARD-GP lengthscale ranking (the approach Zhang et al. used) | 4.92 pp | 2.64 pp |
 
-Read cell by cell, this is not a win for the greedy rule. At 0.5 s, correlation and LASSO both pick 11.1 Hz in every fold and beat greedy on 5 of 7 cells; greedy's lower mean comes from two cells. At 2 s, greedy and ARD tie (2.65 vs 2.64). Greedy is clearly better than ARD at 0.5 s and than correlation at 2 s, and that is all.
+`compare_extra.py` adds the baselines that need no selection at all, and a fairer full-sweep model:
+
+| fixed choice | error | est. time per test | planner ≤ 2 s better on |
+|---|---:|---:|---:|
+| 17.8 Hz alone (the frequency Zhang et al. flag) | 3.03 pp | 0.37 s | 6 of 7 cells |
+| 17.8 + 2.16 Hz (the published pair) | 3.46 pp | 1.96 s | 5 of 7 cells |
+| full sweep, ARD kernel (one lengthscale per feature) | 3.52 pp | 731 s | 6 of 7 cells |
+
+The ARD kernel improves the full-sweep model from 4.14 to 3.52 pp, so the headline gap was partly a weak baseline. The short plan still beats the full sweep on 6 of 7 cells. The single 17.8 Hz reading from the literature matches the planner's 0.5 s budget (3.03 against 3.05 pp) with no selection machinery at all.
+
+Read cell by cell, the comparison with selection rules is not a win for the greedy rule. At 0.5 s, correlation and LASSO both pick 11.1 Hz in every fold and beat greedy on 5 of 7 cells; greedy's lower mean comes from two cells. At 2 s, greedy and ARD tie (2.65 vs 2.64). Greedy is clearly better than ARD at 0.5 s and than correlation at 2 s, and that is all.
 
 The original paper's own pipeline (raw spectra, all 60 frequencies, isotropic GP), run on its showcase cell 35C02 and scored the way its Fig. 3a plots it, gives 1.06 pp. The planner's 2 s plan gives 1.38 pp on that cell. The scoring differs slightly (the paper normalises by the first estimate, this repo by a five-test reference), and 35C02 is an easy cell because its twin 35C01 is in training, but the original method does better there.
 
-**Bottom line:** the finding that matters for test time, mid-frequency points instead of a full sweep or a 1 kHz reading, holds under every selection rule tried. Simple existing rules find it too. The selector in this repo is not a better algorithm; the repo's value is the packaged tool, the cost model and the honest held-out benchmark.
+**Bottom line:** the finding that matters for test time, mid-frequency points instead of a full sweep or a 1 kHz reading, holds under every selection rule tried and against an ARD full-sweep model. Simple existing rules find it too. The selector in this repo is not a better algorithm; the repo's value is the packaged tool, the cost model and the honest held-out benchmark.
 
 ## What this does not show
 
@@ -81,6 +91,7 @@ The plan's printed selection score is optimistic, because the same cells chose t
 python benchmark.py                 # ~18 min on 2 cores, writes results/benchmark.json
 python -m twcx frontier --zhang --out results/frontier_zhang.json
 python compare_methods.py           # ~10 min, writes results/compare_methods.json
+python compare_extra.py             # ~25 min (ARD on 120 features), adds "extra" to it
 python docs/build_workbench.py      # rebuilds docs/workbench.html from those two files
 python -m pytest -q tests           # offline tests on synthetic cells with a known answer
 ```

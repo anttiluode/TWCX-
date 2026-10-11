@@ -64,11 +64,12 @@ class FadeModel:
     """GP regression on standardized impedance changes. Empty idx = predict
     the training mean (the 'measure nothing' baseline)."""
 
-    def __init__(self, idx, stride: int = 4, optimize: bool = True, seed: int = 0):
+    def __init__(self, idx, stride: int = 4, optimize: bool = True, seed: int = 0, ard: bool = False):
         self.idx = list(idx)
         self.stride = stride
         self.optimize = optimize
         self.seed = seed
+        self.ard = ard
 
     def fit(self, train: list[Prepared]):
         y = np.hstack([p.soh[p.eval_mask][:: self.stride] for p in train])
@@ -78,7 +79,8 @@ class FadeModel:
             return self
         X = np.vstack([features(p, self.idx)[p.eval_mask][:: self.stride] for p in train])
         self.sc_ = StandardScaler().fit(X)
-        k = (ConstantKernel(1.0, (1e-2, 1e2)) * RBF(1.0, (1e-2, 1e3))
+        ls = np.ones(X.shape[1]) if self.ard else 1.0   # ARD: one lengthscale per feature
+        k = (ConstantKernel(1.0, (1e-2, 1e2)) * RBF(ls, (1e-2, 1e4 if self.ard else 1e3))
              + WhiteKernel(0.05, (1e-5, 1.0)))
         self.gp_ = GaussianProcessRegressor(k, normalize_y=True,
                                             optimizer="fmin_l_bfgs_b" if self.optimize else None,
