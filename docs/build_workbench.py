@@ -51,3 +51,11 @@ tpl = open(os.path.join(ROOT, "docs", "workbench.template.html")).read()
 out = tpl.replace("/*DATA*/null", json.dumps(data, separators=(",", ":")))
 open(os.path.join(ROOT, "docs", "workbench.html"), "w").write(out)
 print("wrote docs/workbench.html", len(out), "bytes")
+
+# Standalone copy for GitHub Pages (the artifact host adds this skeleton itself).
+page = ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>'
+        '</head><body>\n' + out + '\n</body></html>\n')
+open(os.path.join(ROOT, "index.html"), "w").write(page)
+print("wrote index.html (GitHub Pages)")
