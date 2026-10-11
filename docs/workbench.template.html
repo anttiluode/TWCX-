@@ -1,0 +1,322 @@
+<title>TWCX Impedance Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single instrument-datasheet column; result first, then evidence, then the plan you can take away. */
+:root {
+  --paper: #eef1f2;
+  --panel: #ffffff;
+  --ink: #152027;
+  --ink-2: #4a5961;
+  --rule: #cfd7da;
+  --accent: #1f47c4;
+  --accent-soft: #dfe6fb;
+  --muted-mark: #9aa8ae;
+  --good: #1d7a4d;
+  --bad: #b23a2a;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10171b; --panel: #172127; --ink: #e3eaed; --ink-2: #9fb0b8; --rule: #2b3940;
+    --accent: #7f9cff; --accent-soft: #22305c; --muted-mark: #5e6e76; --good: #5cc48f; --bad: #f08a78;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10171b; --panel: #172127; --ink: #e3eaed; --ink-2: #9fb0b8; --rule: #2b3940;
+  --accent: #7f9cff; --accent-soft: #22305c; --muted-mark: #5e6e76; --good: #5cc48f; --bad: #f08a78;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); }
+.wrap { max-width: 940px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 64px; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(30px, 5.4vw, 48px); line-height: 1.05; font-weight: 700; }
+h2 { font-size: 23px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font: 500 12px/1.3 var(--font-data); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.lede { font-size: 17px; color: var(--ink-2); }
+.lede b { color: var(--ink); font-weight: 600; }
+header { display: grid; gap: 14px; }
+section { display: grid; gap: 14px; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.tile { background: var(--panel); padding: 16px 18px; display: grid; gap: 4px; align-content: start; }
+.tile .v { font: 500 26px/1.1 var(--font-data); font-variant-numeric: tabular-nums; }
+.tile .k { font-size: 13px; color: var(--ink-2); }
+.tile.hero .v { color: var(--accent); }
+.panel { background: var(--panel); border: 1px solid var(--rule); padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.chart { width: 100%; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--ink-2); }
+.chart .lbl { fill: var(--ink); font-size: 11.5px; }
+.note { font-size: 13px; color: var(--ink-2); }
+.tablebox { overflow-x: auto; border: 1px solid var(--rule); background: var(--panel); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font: 500 12px/1.3 var(--font-data); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); vertical-align: bottom; }
+td { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+td.best { color: var(--accent); font-weight: 500; background: var(--accent-soft); }
+tbody tr:last-child td { border-bottom: 0; }
+tfoot td { border-top: 2px solid var(--rule); border-bottom: 0; font-weight: 500; }
+.budgets { display: flex; flex-wrap: wrap; gap: 8px; }
+.budgets button { font: 500 14px var(--font-data); padding: 8px 14px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); cursor: pointer; }
+.budgets button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.plan { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 640px) { .plan { grid-template-columns: 1fr; } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 15px var(--font-data); padding: 6px 10px; border: 1px solid var(--accent); color: var(--accent); }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
+dt { color: var(--ink-2); }
+dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+pre { margin: 0; font: 12.5px/1.5 var(--font-data); background: var(--paper); border: 1px solid var(--rule); padding: 12px; overflow-x: auto; max-height: 260px; }
+.copy { justify-self: start; font: 500 14px var(--font-body); padding: 8px 14px; border: 1px solid var(--ink); background: var(--ink); color: var(--panel); cursor: pointer; }
+.limits { display: grid; gap: 10px; padding-left: 18px; margin: 0; max-width: 70ch; }
+.limits li { padding-left: 4px; }
+code { font-family: var(--font-data); font-size: 0.92em; }
+footer { font-size: 13px; color: var(--ink-2); display: grid; gap: 6px; }
+a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">TWCX · impedance test planner · held out on 7 lab cells</div>
+    <h1>Measure for under a second, not twelve minutes.</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>Error against test time</h2>
+    <p class="note">Each point is one way of testing a cell, scored on cells the method never saw. Lower is better, further left is faster. The planner's points come from frequencies chosen using only the other six cells.</p>
+    <div class="panel"><div class="chart" id="frontier"></div></div>
+  </section>
+
+  <section>
+    <h2>Where the useful frequencies sit</h2>
+    <p class="note" id="stripnote"></p>
+    <div class="panel"><div class="chart" id="strip"></div></div>
+  </section>
+
+  <section>
+    <h2>Cell by cell</h2>
+    <p class="note">Mean absolute error in state of health, percentage points, after the five commissioning checks. Highlighted is the best of the five methods for that cell.</p>
+    <div class="tablebox"><table id="cells"></table></div>
+  </section>
+
+  <section>
+    <h2>Flagging cells below 80%</h2>
+    <p class="note">Every post-commissioning test, all seven held-out cells pooled. Sensitivity is the share of tests below 80% that were flagged; specificity is the share above 80% left alone.</p>
+    <div class="tablebox"><table id="eol"></table></div>
+  </section>
+
+  <section>
+    <h2>Take a test plan</h2>
+    <p class="note">Plans below are chosen from all seven cells together, which is what you would ship. Their selection score is optimistic because the same cells chose them; the held-out figure beside it is the honest one.</p>
+    <div class="budgets" id="budgets" role="group" aria-label="Time budget per test"></div>
+    <div class="panel plan">
+      <div style="display:grid;gap:12px;min-width:0">
+        <h3 id="plantitle"></h3>
+        <div class="chips" id="chips"></div>
+        <dl id="planstats"></dl>
+      </div>
+      <div style="display:grid;gap:10px;min-width:0">
+        <pre id="planjson"></pre>
+        <button class="copy" id="copy" type="button">Copy plan JSON</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What this does not show</h2>
+    <ul class="limits">
+      <li>Seven coin cells of one chemistry from one lab. That is enough to see a large effect, not enough to qualify a plan for a production line. Run the planner on your own cells before relying on it.</li>
+      <li>The task is tracking fade against each cell's own commissioning reference. Cold grading of an unknown cell was also checked: absolute capacity came out about 3 mAh wrong on ~35 mAh cells whatever was measured, close to guessing the average.</li>
+      <li>The frequencies chosen are not new. The original authors' own code singles out the imaginary part at 17.8 Hz as the top feature. What is new here is a cost-aware, held-out way of picking the plan, and the comparison against the full sweep and 1 kHz.</li>
+      <li>Frequency labels are a reconstructed 60-point log grid from 20 kHz to 0.02 Hz. Test times come from a stated model of three periods plus 0.2 s per frequency, not from an instrument.</li>
+      <li>A bigger budget did not help. At 60 s one fold picked a 0.05 Hz point that fit the training cells and failed on the held-out one. With six training cells, selection is noisy; the band is stable, the exact points are not.</li>
+      <li>The hindsight row shows what a perfect choice of one frequency would have scored. The planner leaves about 0.6 pp on the table at the 2 s budget.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>Data: Zhang, Tang, Zhang, Chen, Kang, Lee, Nature Communications 11, 1706 (2020), tables from the authors' repository <a href="https://github.com/YunweiZhang/ML-identify-battery-degradation">YunweiZhang/ML-identify-battery-degradation</a>.</div>
+    <div>Code, benchmark and CLI: <a href="https://github.com/anttiluode/TWCX-">anttiluode/TWCX-</a>. <code>python benchmark.py</code> reproduces every number on this page.</div>
+  </footer>
+</div>
+
+<script>
+const D = /*DATA*/null;
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d = 2) => Number(v).toFixed(d);
+const fHz = (f) => f >= 1000 ? fmt(f / 1000, f >= 10000 ? 1 : 2) + " kHz" : f >= 10 ? fmt(f, 1) + " Hz" : f >= 1 ? fmt(f, 2) + " Hz" : fmt(f, 3) + " Hz";
+const A = D.arms;
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+// Lede and tiles
+const p2 = A["twcx@2s"], fs = A.full_sweep, ac = A.ac_ir_953Hz, no = A.nothing;
+$("lede").innerHTML =
+  `On cells it never saw, a plan of a few mid-frequency points tracked capacity fade with <b>${fmt(p2.mae)} pp</b> error at about <b>${fmt(p2.secs)} s</b> per test. ` +
+  `The full 60-point sweep took about <b>${fmt(fs.secs / 60, 1)} min</b> and did worse at <b>${fmt(fs.mae)} pp</b>. ` +
+  `A 1 kHz reading, what fast cell testers use, scored <b>${fmt(ac.mae)} pp</b>: no better than not measuring at all (${fmt(no.mae)} pp).`;
+const per1000 = (s) => s * 1000 / 3600;
+const tiles = [
+  { v: fmt(p2.mae) + " pp", k: "planner, 2 s budget, held out", hero: true },
+  { v: fmt(fs.mae) + " pp", k: "full sweep, 20 kHz to 0.02 Hz" },
+  { v: `${fmt(per1000(p2.secs), 2)} h`, k: "per 1,000 tests with the plan (est.)" },
+  { v: `${fmt(per1000(fs.secs), 0)} h`, k: "per 1,000 tests with full sweeps (est.)" },
+];
+$("tiles").innerHTML = tiles.map(t => `<div class="tile${t.hero ? " hero" : ""}"><div class="v">${t.v}</div><div class="k">${t.k}</div></div>`).join("");
+
+// Frontier chart
+(function () {
+  const W = 860, H = 380, L = 56, R = 175, T = 18, B = 46;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Held-out error against seconds per test" }, $("frontier"));
+  const x0 = Math.log10(0.1), x1 = Math.log10(2000);
+  const ymax = 7, ymin = 0;
+  const X = (s) => L + (Math.log10(s) - x0) / (x1 - x0) * (W - L - R);
+  const Y = (v) => T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B);
+  for (let v = 0; v <= 7; v++) {
+    el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "var(--rule)", "stroke-width": 1 }, svg);
+    el("text", { x: L - 8, y: Y(v) + 4, "text-anchor": "end" }, svg, v);
+  }
+  [[0.1, "0.1 s"], [1, "1 s"], [10, "10 s"], [60, "1 min"], [600, "10 min"]].forEach(([s, t]) => {
+    el("line", { x1: X(s), x2: X(s), y1: T, y2: H - B, stroke: "var(--rule)", "stroke-dasharray": "2 4" }, svg);
+    el("text", { x: X(s), y: H - B + 18, "text-anchor": "middle" }, svg, t);
+  });
+  el("text", { x: L, y: H - 6 }, svg, "seconds per test (log)");
+  el("text", { x: 14, y: T + 4, transform: `rotate(-90 14 ${T + 4})`, "text-anchor": "end" }, svg, "SOH error, pp");
+  // reference line: measuring nothing
+  el("line", { x1: L, x2: W - R, y1: Y(no.mae), y2: Y(no.mae), stroke: "var(--bad)", "stroke-dasharray": "6 4", "stroke-width": 1.5 }, svg);
+  el("text", { x: W - R + 8, y: Y(no.mae) + 4, class: "lbl" }, svg, `measure nothing ${fmt(no.mae)}`);
+  // random and hindsight
+  D.budgets.forEach(b => {
+    const r = A[`random@${b}s`], h = A[`hindsight@${b}s`];
+    el("circle", { cx: X(r.secs), cy: Y(r.mae), r: 4, fill: "var(--muted-mark)" }, svg);
+    el("circle", { cx: X(h.secs), cy: Y(h.mae), r: 4.5, fill: "var(--panel)", stroke: "var(--muted-mark)", "stroke-width": 1.5 }, svg);
+  });
+  // planner path
+  const pts = D.budgets.map(b => A[`twcx@${b}s`]);
+  el("polyline", { points: pts.map(p => `${X(p.secs)},${Y(p.mae)}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": 1.5, "stroke-opacity": 0.5 }, svg);
+  const seen = new Set();
+  D.budgets.forEach(b => {
+    const p = A[`twcx@${b}s`];
+    el("circle", { cx: X(p.secs), cy: Y(p.mae), r: 6, fill: "var(--accent)" }, svg);
+    const key = `${fmt(p.secs)}|${fmt(p.mae)}`;
+    if (!seen.has(key)) { seen.add(key); el("text", { x: X(p.secs) + 9, y: Y(p.mae) - 8, class: "lbl", fill: "var(--accent)" }, svg, `≤${b} s`); }
+  });
+  // named arms
+  [[ac, "1 kHz (953 Hz)", 20], [fs, "full sweep", -12]].forEach(([a, t, dy]) => {
+    el("rect", { x: X(a.secs) - 5.5, y: Y(a.mae) - 5.5, width: 11, height: 11, fill: "var(--ink)" }, svg);
+    el("text", { x: X(a.secs) + (a === fs ? -10 : 10), y: Y(a.mae) + dy, class: "lbl", "text-anchor": a === fs ? "end" : "start" }, svg, `${t} ${fmt(a.mae)}`);
+  });
+  // legend
+  const lg = [["var(--accent)", "circle", "planner (budget)"], ["var(--muted-mark)", "circle", "random single freq."], ["hollow", "circle", "best single, hindsight"], ["var(--ink)", "rect", "fixed alternatives"]];
+  lg.forEach(([c, s, t], i) => {
+    const y = T + 120 + i * 20, x = W - R + 12;
+    if (s === "rect") el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, fill: c }, svg);
+    else if (c === "hollow") el("circle", { cx: x, cy: y, r: 4.5, fill: "var(--panel)", stroke: "var(--muted-mark)", "stroke-width": 1.5 }, svg);
+    else el("circle", { cx: x, cy: y, r: 5, fill: c }, svg);
+    el("text", { x: x + 10, y: y + 4 }, svg, t);
+  });
+})();
+
+// Frequency strip
+(function () {
+  const W = 860, rowH = 30, T = 30, B = 40, L = 70, R = 20;
+  const H = T + rowH * D.folds.length + B;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Frequencies chosen per held-out fold" }, $("strip"));
+  const f0 = Math.log10(0.015), f1 = Math.log10(30000);
+  const X = (f) => L + (f1 - Math.log10(f)) / (f1 - f0) * (W - L - R);
+  const band = D.band;
+  el("rect", { x: X(band[1] * 1.12), y: T - 10, width: X(band[0] / 1.12) - X(band[1] * 1.12), height: rowH * D.folds.length + 6, fill: "var(--accent-soft)" }, svg);
+  el("text", { x: (X(band[1]) + X(band[0])) / 2, y: T - 14, "text-anchor": "middle", class: "lbl", fill: "var(--accent)" }, svg, `${fmt(band[0], 1)}–${fmt(band[1], 1)} Hz`);
+  [[10000, "10 kHz"], [1000, "1 kHz"], [100, "100 Hz"], [10, "10 Hz"], [1, "1 Hz"], [0.1, "0.1 Hz"], [0.02, "0.02 Hz"]].forEach(([f, t]) => {
+    el("line", { x1: X(f), x2: X(f), y1: T - 6, y2: H - B + 4, stroke: "var(--rule)", "stroke-dasharray": "2 4" }, svg);
+    el("text", { x: X(f), y: H - B + 20, "text-anchor": "middle" }, svg, t);
+  });
+  el("text", { x: W - R, y: H - 6, "text-anchor": "end" }, svg, "slower to measure →");
+  D.folds.forEach((f, i) => {
+    const y = T + i * rowH + rowH / 2;
+    el("line", { x1: L, x2: W - R, y1: y, y2: y, stroke: "var(--rule)" }, svg);
+    el("text", { x: L - 10, y: y + 4, "text-anchor": "end", class: "lbl" }, svg, f.cell);
+    f.sel2.forEach(fr => el("circle", { cx: X(fr), cy: y, r: 6, fill: "var(--accent)" }, svg));
+    f.sel05.forEach(fr => el("circle", { cx: X(fr), cy: y, r: 9.5, fill: "none", stroke: "var(--ink)", "stroke-width": 1.5 }, svg));
+  });
+  $("stripnote").textContent = `Each row is one held-out cell; the planner chose from the other six. Filled dots are the 2 s plan, rings the single frequency picked at 0.5 s. Across all ${D.folds.length} folds the 0.5 s picks span only ${fmt(band[0], 1)} to ${fmt(band[1], 1)} Hz, ${fmt(D.bandDecades, 2)} of the sweep's six decades. No 2 s plan went below ${fHz(D.lowest2)}, while the full sweep spends almost all its time below 1 Hz.`;
+})();
+
+// Cell table
+(function () {
+  const cols = [["nothing", "nothing"], ["ac_ir_953Hz", "1 kHz"], ["full_sweep", "full sweep"], ["twcx@0.5s", "plan ≤0.5 s"], ["twcx@2s", "plan ≤2 s"]];
+  let h = `<thead><tr><th>cell</th><th>tests</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>`;
+  D.cells.forEach(c => {
+    const vals = cols.map(([k]) => A[k].per[c.name]);
+    const best = Math.min(...vals);
+    h += `<tr><td>${c.name} <span class="note">${c.temperature_C} °C</span></td><td>${c.n_tests}</td>${vals.map(v => `<td class="${v === best ? "best" : ""}">${fmt(v)}</td>`).join("")}</tr>`;
+  });
+  h += `</tbody><tfoot><tr><td>mean</td><td></td>${cols.map(([k]) => `<td>${fmt(A[k].mae)}</td>`).join("")}</tr></tfoot>`;
+  $("cells").innerHTML = h;
+})();
+
+// EOL table
+(function () {
+  const rows = [["nothing", "measure nothing"], ["ac_ir_953Hz", "1 kHz"], ["full_sweep", "full sweep"], ["twcx@0.5s", "plan ≤0.5 s"], ["twcx@2s", "plan ≤2 s"]];
+  let h = `<thead><tr><th>method</th><th>sensitivity</th><th>specificity</th><th>balanced accuracy</th><th>missed</th><th>false alarms</th></tr></thead><tbody>`;
+  rows.forEach(([k, t]) => {
+    const e = A[k].eol;
+    h += `<tr><td>${t}</td><td>${fmt(e.sensitivity * 100, 0)}%</td><td>${fmt(e.specificity * 100, 0)}%</td><td>${fmt(e.balanced_accuracy, 3)}</td><td>${e.fn}</td><td>${e.fp}</td></tr>`;
+  });
+  $("eol").innerHTML = h + "</tbody>";
+})();
+
+// Plan picker
+(function () {
+  const plans = D.plans;
+  let cur = plans.findIndex(p => p.budget_s === 2);
+  const btns = plans.map((p, i) => `<button type="button" id="b${i}" aria-pressed="${i === cur}">≤ ${p.budget_label}</button>`).join("");
+  $("budgets").innerHTML = btns;
+  function render() {
+    const p = plans[cur];
+    plans.forEach((_, i) => $("b" + i).setAttribute("aria-pressed", i === cur));
+    $("plantitle").textContent = p.freqs_hz.length ? `${p.freqs_hz.length} frequenc${p.freqs_hz.length > 1 ? "ies" : "y"}, about ${fmt(p.seconds_per_test, 2)} s per test` : "No frequency earns its time";
+    $("chips").innerHTML = p.freqs_hz.map(f => `<span class="chip">${fHz(f)}</span>`).join("");
+    const ho = A[`twcx@${p.budget_key}s`];
+    $("planstats").innerHTML =
+      `<dt>held-out error</dt><dd>${ho ? fmt(ho.mae) + " pp (7 folds)" : "not benchmarked"}</dd>` +
+      `<dt>selection score</dt><dd>${fmt(p.cv_mae_pp)} pp (optimistic)</dd>` +
+      `<dt>full sweep</dt><dd>${fmt(D.fullSweepSeconds, 0)} s per test</dd>` +
+      `<dt>time saved</dt><dd>${fmt(D.fullSweepSeconds / Math.max(p.seconds_per_test, 1e-9), 0)}× faster</dd>`;
+    const plan = {
+      planner: "twcx 0.1.0", task: "SOH tracking against each cell's commissioning reference (mean of first 5 tests)",
+      frequencies_hz: p.freqs_hz.map(f => +f.toFixed(4)), read: "Re(Z) and Im(Z) at each frequency",
+      est_seconds_per_test: +p.seconds_per_test.toFixed(3), cost_model: D.costModel,
+      trained_on: "Zhang et al. 2020, 7 LR2032 coin cells", heldout_mae_pp: ho ? +ho.mae.toFixed(2) : null,
+      validate_before_use: "re-run `python -m twcx plan your.csv` on your own cells",
+    };
+    $("planjson").textContent = JSON.stringify(plan, null, 2);
+  }
+  plans.forEach((_, i) => $("b" + i).addEventListener("click", () => { cur = i; render(); }));
+  render();
+  $("copy").addEventListener("click", async () => {
+    const txt = $("planjson").textContent, b = $("copy");
+    try { await navigator.clipboard.writeText(txt); b.textContent = "Copied"; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($("planjson")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected, press Ctrl+C"; }
+    setTimeout(() => (b.textContent = "Copy plan JSON"), 1800);
+  });
+})();
+</script>

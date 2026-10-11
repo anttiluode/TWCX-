@@ -1,0 +1,75 @@
+{
+ "n_cells": 7,
+ "cells": [
+  "25C_A",
+  "25C_B",
+  "25C_C",
+  "25C_D",
+  "35C01",
+  "45C01",
+  "35C02"
+ ],
+ "cost_model": {
+  "settle_periods": 1.0,
+  "measured_periods": 2.0,
+  "overhead_s": 0.2
+ },
+ "reference_points": {
+  "nothing": {
+   "cv_mae_pp": 6.157643534044422,
+   "seconds": 0.0
+  },
+  "single_952.8Hz_(nearest_1kHz)": {
+   "cv_mae_pp": 5.131929514479145,
+   "seconds": 0.20314865558016285
+  },
+  "full_sweep": {
+   "cv_mae_pp": 4.281210071561264,
+   "seconds": 730.5081358592847
+  }
+ },
+ "plans": [
+  {
+   "budget_s": 2.0,
+   "freqs_hz": [
+    6.972730455356168,
+    115.80887961204978,
+    2430.948500152573
+   ],
+   "seconds_per_test": 1.0573863575624485,
+   "cv_mae_pp": 2.1765682988414183,
+   "steps": [
+    {
+     "set": [],
+     "cv_mae_pp": 6.157643534044422,
+     "seconds": 0.0
+    },
+    {
+     "set": [
+      34
+     ],
+     "cv_mae_pp": 2.6980981497526755,
+     "seconds": 0.6302475220013017
+    },
+    {
+     "set": [
+      34,
+      22
+     ],
+     "cv_mae_pp": 2.456749897301957,
+     "seconds": 0.8561522713611933
+    },
+    {
+     "set": [
+      34,
+      22,
+      9
+     ],
+     "cv_mae_pp": 2.1765682988414183,
+     "seconds": 1.0573863575624485
+    }
+   ]
+  }
+ ],
+ "caveat": "cv_mae_pp is leave-one-cell-out SOH error in percentage points on the cells supplied; it estimates, not guarantees, error on new cells"
+}
