@@ -26,11 +26,28 @@ In plain terms: on these cells, under a second of mid-frequency measurement trac
 
 The interactive version, with the error-vs-time chart, the frequency map and a copyable test plan, is `docs/workbench.html` (built from the result files by `docs/build_workbench.py`).
 
+## Against existing selection methods
+
+`compare_methods.py` keeps everything identical (folds, features, final GP, budgets, at most 3 frequencies) and swaps only the rule that picks the frequencies. Every rule sees only the six training cells of its fold.
+
+| selection rule | ≤ 0.5 s | ≤ 2 s |
+|---|---:|---:|
+| greedy, inner leave-one-cell-out (this repo) | 3.05 pp | 2.65 pp |
+| rank by correlation with SOH | 3.50 pp | 3.24 pp |
+| LASSO path | 3.50 pp | 2.99 pp |
+| ARD-GP lengthscale ranking (the approach Zhang et al. used) | 4.92 pp | 2.64 pp |
+
+Read cell by cell, this is not a win for the greedy rule. At 0.5 s, correlation and LASSO both pick 11.1 Hz in every fold and beat greedy on 5 of 7 cells; greedy's lower mean comes from two cells. At 2 s, greedy and ARD tie (2.65 vs 2.64). Greedy is clearly better than ARD at 0.5 s and than correlation at 2 s, and that is all.
+
+The original paper's own pipeline (raw spectra, all 60 frequencies, isotropic GP), run on its showcase cell 35C02 and scored the way its Fig. 3a plots it, gives 1.06 pp. The planner's 2 s plan gives 1.38 pp on that cell. The scoring differs slightly (the paper normalises by the first estimate, this repo by a five-test reference), and 35C02 is an easy cell because its twin 35C01 is in training, but the original method does better there.
+
+**Bottom line:** the finding that matters for test time, mid-frequency points instead of a full sweep or a 1 kHz reading, holds under every selection rule tried. Simple existing rules find it too. The selector in this repo is not a better algorithm; the repo's value is the packaged tool, the cost model and the honest held-out benchmark.
+
 ## What this does not show
 
 - **Seven coin cells, one chemistry, one lab.** Enough to see a large effect; not enough to qualify a plan for a production line. Run the planner on your own cells.
 - **Fade tracking, not cold grading.** Predicting the absolute capacity of an unknown cell from its spectrum came out about 3 mAh wrong on ~35 mAh cells whatever was measured, close to guessing the average (`absolute_capacity_check` in the results). The tool is for cells with a commissioning reference: aging labs, fleet or storage monitoring, on-board impedance.
-- **The frequencies are not a discovery.** The original authors' own code (`ARD_GPR.m`) singles out the 91st feature, the imaginary part at grid index 30 (17.8 Hz nominal), as the top predictor. Picking a few informative EIS frequencies is an established research topic. What this repo adds is a reusable, cost-aware, nested held-out way of choosing the plan, and the direct comparison against the full sweep and 1 kHz.
+- **The frequencies are not a discovery.** The original authors' own code (`ARD_GPR.m`) singles out the 91st feature, the imaginary part at grid index 30 (17.8 Hz nominal), as the top predictor. Picking a few informative EIS frequencies is an established research topic. What this repo adds is a reusable, cost-aware, nested held-out way of choosing the plan, and the direct comparison against the full sweep and 1 kHz. The selection rule itself does no better than simple existing rules (see above).
 - **Frequency labels are nominal.** The published tables have no frequency column; the grid is reconstructed as 60 log-spaced points from 20 kHz to 0.02 Hz, which puts index 30 at 17.79 Hz.
 - **Times are estimates.** Cost model: (1 settling + 2 measured periods)/f + 0.2 s per frequency. Instruments differ; the 1/f scaling that makes low frequencies expensive does not.
 - **More budget did not help.** At 60 s one fold picked a 0.05 Hz point that fit its six training cells and failed on the held-out one. With six training cells, the band the planner picks is stable (all seven 0.5 s picks fall in 17.8–35.9 Hz); the exact points are not.
@@ -63,6 +80,7 @@ The plan's printed selection score is optimistic, because the same cells chose t
 ```
 python benchmark.py                 # ~18 min on 2 cores, writes results/benchmark.json
 python -m twcx frontier --zhang --out results/frontier_zhang.json
+python compare_methods.py           # ~10 min, writes results/compare_methods.json
 python docs/build_workbench.py      # rebuilds docs/workbench.html from those two files
 python -m pytest -q tests           # offline tests on synthetic cells with a known answer
 ```
